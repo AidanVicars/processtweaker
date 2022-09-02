@@ -50,6 +50,8 @@ namespace processtweaker
         return true;
       }
       
+      //Process not found continue loop
+      return false;
     });
     
     return proc_id; 
@@ -114,6 +116,30 @@ namespace processtweaker
       CloseHandle(h_snapshot);
     }
     
+    void do_thread(std::functional<bool(THREADENTRY32&) callback)
+    {
+      //Create tool help snapshot
+      HANDLE h_snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    
+      THREADENTRY32 thread_entry{ 0 };
+      thread_entry.dwSize = sizeof thread_entry;
+    
+      //Get first thread entry
+      Thread32First(h_snapshot, &thread_entry)
+        
+      do
+      {
+        //Run callback. if callback returns true exit loop.
+        if(callback(thread_entry))
+          break;    
+      }
+      //Get next thread entry
+      while(Thread32Next(h_snapshot, &thread_entry));
+        
+      //Close handle to snapshot
+      CloseHandle(h_snapshot);
+    }
+    
     std::uintptr_t get_module_base(const wchar_t* module_name)
     {
       std::uintptr_t module_base = 0;
@@ -133,6 +159,23 @@ namespace processtweaker
       return module_base;    
     }
     
+    HANDLE create_thread(std::uintptr_t start_address, LPVOID thread_param)
+    {
+      std::uint32_t thread_id = 0;
+      HANDLE h_thread = CreateRemoteThread(h_proc, nullptr, 0, (LPTHREAD_START_ROUTINE)start_address, thread_param, 0, &thread_id);
+      
+      printf_s("[processtweaker] created remote thread: %i\n", thread_id);
+      
+      return h_thread; 
+    }
     
+    std::uintptr_t alloc(std::uintptr_t address, size_t size)
+    {
+      
+        return VirtualAllocEx(h_proc, address, size, 0, 0);
+        
+    }
+                
   }
+                
 }
